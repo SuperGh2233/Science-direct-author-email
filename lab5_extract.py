@@ -1056,8 +1056,8 @@ def extract(html_text):
     single_mailto = len(mailto_links) == 1
     for a in mailto_links:
         em = a.get("href", "").split("mailto:", 1)[-1]
-        name = (a.text_content() or "").strip()
-        add(em, name if name and "@" not in name else None, "mailto", corresponding=single_mailto)
+        name = _clean_click_name(a.text_content())  # 过滤 UI 文案 (如 "Author links open overlay panel")
+        add(em, name, "mailto", corresponding=single_mailto)
 
     # 策略4: CF 邮箱混淆 —— data-cfemail 属性 + /cdn-cgi/l/email-protection#hex href 两种
     #   (CF 全站混淆, 不只通讯 → 靠 _in_corr_ctx 判是否通讯上下文)
