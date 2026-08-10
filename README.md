@@ -15,11 +15,11 @@
 - 依赖: `curl_cffi`、`playwright`、`playwright-stealth`、`patchright`(反检测 playwright fork)、`camoufox`(反检测 Firefox)、`lxml`(lab5 HTML 解析)
 
 ## 运行(统一入口)
-本目录下双击或命令行用 `lab.cmd`(已绑定 venv python + 自动 UTF-8),给个 URL 就跑全套打它:
+lab1-4 已移到 `lab1-4/` 子目录; `lab5` 在根目录(主用工具)。先 `cd lab1-4` 再跑层1:
 ```
-lab                            # 跑全套层1 (lab1 tls.peet.ws, lab2 example.com, lab3 本地判官, lab4 demo测试key)
-lab https://你的站/             # 跑全套: lab2/3/4 打你的站, lab1 仍打 tls.peet.ws
-lab5 https://你的站/article     # 层2 取内容 (抽通讯作者邮箱), 独立入口
+cd lab1-4 && lab                    # 跑全套层1 (lab1 tls.peet.ws, lab2 example.com, lab3 本地判官, lab4 demo测试key)
+cd lab1-4 && lab https://你的站/     # 跑全套: lab2/3/4 打你的站, lab1 仍打 tls.peet.ws
+lab5 https://你的站/article          # 层2 取内容 (抽通讯作者邮箱), 根目录独立入口
 ```
 - lab1 不吃目标参数 —— 它必须打 `tls.peet.ws` 这种 TLS 回显服务, 普通站不返回 JA3; 所以给目标 URL 时 lab1 仍打 tls.peet.ws(它看的是客户端指纹, 与目标无关)。
 - 测自己站时看每个客户端 HTTP 状态码: 全 200 = 没设防; 403/挑战页 = 那层有检测。

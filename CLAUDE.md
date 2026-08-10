@@ -20,10 +20,11 @@ automation and how those signals can be replicated. Two layers:
 
 ## Running
 
+lab1-4 live in `lab1-4/` (cd there to run them); lab5 is the root-level main tool.
+
 ```
-lab                              # Full suite with defaults (lab1→tls.peet.ws, lab2→example.com, lab3→local judge, lab4→demo test key)
-lab https://yoursite.com/        # Full suite hitting your site (lab1 still uses tls.peet.ws)
-lab --headed https://yoursite.com/  # lab3/lab4 with visible browser windows
+cd lab1-4; lab                       # Full suite with defaults (lab1→tls.peet.ws, lab2→example.com, lab3→local judge, lab4→demo test key)
+cd lab1-4; lab https://yoursite.com/ # Full suite hitting your site (lab1 still uses tls.peet.ws)
 lab5 https://yoursite.com/article  # Single article email extraction
 lab5 --list urls.txt --headed      # Batch extraction with resume support
 lab5 --list urls.txt --headed --delay 5-10 --rest-every 10:30  # Batch with IP-warming delays
@@ -36,11 +37,11 @@ Individual labs: `lab4.cmd` (Turnstile only), `lab5.cmd` (extraction only), or r
 
 | File | Purpose |
 |---|---|
-| `lab.py` | Unified entry point, dispatches to lab1–4 |
-| `lab1_tls_fingerprint.py` | TLS/JA3/HTTP2 fingerprint comparison (urllib vs requests vs curl_cffi) |
-| `lab2_browser_fingerprint.py` | Navigator/WebGL/plugin leak detection (vanilla vs stealth) |
-| `lab3_local_judge.py` | 6-client matrix against a target site + local judge server |
-| `lab4_turnstile.py` | Turnstile widget token + edge clearance (`cf_clearance`) flows |
+| `lab1-4/lab.py` | Layer-1 unified entry point, dispatches to lab1–4 |
+| `lab1-4/lab1_tls_fingerprint.py` | TLS/JA3/HTTP2 fingerprint comparison (urllib vs requests vs curl_cffi) |
+| `lab1-4/lab2_browser_fingerprint.py` | Navigator/WebGL/plugin leak detection (vanilla vs stealth) |
+| `lab1-4/lab3_local_judge.py` | 6-client matrix against a target site + local judge server |
+| `lab1-4/lab4_turnstile.py` | Turnstile widget token + edge clearance (`cf_clearance`) flows |
 | `lab5_extract.py` | Multi-strategy email extraction + ✉ click flow + batch mode |
 | `judge_server.py` | Local HTTP server on :8765 that scores requests as bot/human |
 | `lab5_results.csv` | Batch extraction output (`article_url, title, authors, email, source`) |
