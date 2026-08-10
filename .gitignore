@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+lab5_results*.csv
+yingdao_trigger_*.txt
+.claude/
