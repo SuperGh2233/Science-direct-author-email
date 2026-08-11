@@ -553,17 +553,18 @@ def reveal_auto(target, headless, max_tries=15, settle=4):
     return list(all_found.values()), html, note, xhr_emails
 
 
-def _harvest(page, ctx, target, headless, max_tries=15, settle=4):
+def _harvest(page, ctx, target, headless, max_tries=15, settle=4, force_click=False):
     """在已加载+已验证+已 cookie 的 page 上: 收 mailto/corr + 点✉(多作者累计)。返回 ([(email, src)], {email小写: 归属姓名})。
     reveal_auto(单篇) 和 reveal_auto_batch(多篇) 都调它, 不重复写点击逻辑。
-    归属: 点✉前读候选所在作者容器的名字 → 点后新增的邮箱就归这个名字 (ScienceDirect ✉ 挂在作者按钮里)。"""
+    归属: 点✉前读候选所在作者容器的名字 → 点后新增的邮箱就归这个名字 (ScienceDirect ✉ 挂在作者按钮里)。
+    force_click=True: 静态收到邮箱也不短路, 继续点✉拿姓名归属 (补全场景专用)。"""
     all_found = {}
     email_authors = {}
     def _acc(items):
         for em, src in items:
             all_found.setdefault(em.lower(), (em, src))
     _acc(_collect_emails(page))
-    if all_found:
+    if all_found and not force_click:
         return list(all_found.values()), email_authors
     cand_sel = ('button, [role="button"], svg, [class*="icon" i], [onclick], '
                 'a[href^="#"], a[href^="javascript"], '
@@ -627,6 +628,13 @@ def _harvest(page, ctx, target, headless, max_tries=15, settle=4):
             if ctx_name:
                 for k in set(all_found) - prev_keys:
                     email_authors.setdefault(k, ctx_name)  # 点这个✉才冒出来的邮箱 → 归这个名字
+            # 归属兜底: 弹窗还开着时抓邮箱锚点父容器的作者名 (SD "Author <名> View in Scopus")。
+            # 必须在 Esc 关弹窗前跑, 否则锚点从 DOM 消失。
+            if force_click or not email_authors:
+                try:
+                    email_authors.update(email_names_from_dom(page))
+                except Exception:
+                    pass
             print(f"    [试 {tried}] 收完 (弹窗邮箱 {len(all_found)}, 全策略最后统一汇总)")
             if page.url != url0:
                 try:
@@ -641,6 +649,13 @@ def _harvest(page, ctx, target, headless, max_tries=15, settle=4):
                     page.keyboard.press("Escape")
                 except Exception:
                     pass
+        except Exception:
+            pass
+    # 归属兜底: 点✉后从 DOM 邮箱锚点父容器解析 (SD "Author <名> View in Scopus"),
+    # 补点击归属覆盖不到的 (icon-only ✉ 按钮没有名字, 名字在邮箱锚点容器)
+    if force_click or not email_authors:
+        try:
+            email_authors.update(email_names_from_dom(page))
         except Exception:
             pass
     return list(all_found.values()), email_authors
@@ -894,7 +909,42 @@ def _clean_click_name(s):
         return None
     return t
 
-# ✉ 候选元素 → 所在作者容器 (class 含 author 且非 group/list 大容器) 的首行文本 = 作者名
+
+def email_names_from_dom(page):
+    """点✉后, 从 DOM 里 mailto 锚点的父容器文本解析 email→作者名。
+    ScienceDirect 邮箱区块结构: "Author Shenbin Cao View in Scopus <单位> <mailto 锚点>"。
+    比 _CLICK_NAME_JS (点✉前找作者按钮) 可靠 —— 邮箱和名字在弹窗注入后同容器。"""
+    try:
+        res = page.evaluate("""() => {
+          const out = [];
+          document.querySelectorAll('a[href^="mailto:"]').forEach(a => {
+            const email = a.getAttribute('href').slice(7).split('?')[0].trim();
+            if (!email) return;
+            let pc = a;
+            for (let i = 0; i < 4; i++) { if (pc.parentElement) pc = pc.parentElement; }
+            const t = (pc.innerText || '').replace(/\\s+/g, ' ').trim();
+            out.push({email: email, text: t});
+          });
+          return out;
+        }""")
+    except Exception:
+        return {}
+    m = {}
+    for r in res:
+        em = r["email"].lower()
+        if not em or "@" not in em:
+            continue
+        mt = re.search(r"Author\s+([A-Za-z][A-Za-z\s\.\-']*?)(?:\s+View in Scopus|\s*$)", r["text"])
+        if mt:
+            name = " ".join(mt.group(1).split()).strip(" .")
+            if name and not any(k in name.casefold() for k in ("scopus", "author")):
+                m[em] = name
+    return m
+
+# ✉ 候选元素 → 所在作者容器 (class 含 author 且非大容器) 的首行文本 = 作者名
+# author-group 是"所有作者"大容器 (innerText 是整列作者), 必须排除;
+# 单作者容器才是目标 (但 SD 的 ✉ 在 icon-only 按钮里, 名字在同级兄弟按钮, 此 JS 读不到 →
+#   归属靠 email_names_from_dom 解析邮箱锚点父容器, 见下)。
 _CLICK_NAME_JS = """e => {
   let n = e;
   for (let i = 0; i < 5 && n; i++) {
@@ -902,7 +952,7 @@ _CLICK_NAME_JS = """e => {
     if (!n) break;
     const cn = n.className;
     const cls = String(cn && cn.baseVal !== undefined ? cn.baseVal : (cn || ''));
-    if (/author/i.test(cls) && !/author-group|author-highlights|author-links|authors-list/i.test(cls)) {
+    if (/author/i.test(cls) && !/author-group|content-authors|author-highlights|author-links|authors-list/i.test(cls)) {
       const t = (n.innerText || '').trim();
       if (t && t.length <= 60) return t.split('\\n')[0].trim();
     }
